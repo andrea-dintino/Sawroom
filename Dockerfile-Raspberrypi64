@@ -14,9 +14,7 @@ ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
 
 RUN apt-get update -y -q \
-
-	&& apt-get install -y -q  --fix-missing \
-
+&& apt-get install -y -q  --fix-missing \
   apt-utils \
   g++ \
   pkg-config \
@@ -62,8 +60,7 @@ RUN mkdir -p /etc/sawtooth/keys \
 	&& mkdir -p /var/lib/sawtooth \
 	&& mkdir -p /var/log/sawtooth
 
-# udpating 11.02.21
-# ENV PATH=$PATH:/project/sawtooth-core/bin
+
 
 ENV PATH=$PATH:/project/sawtooth-core/bin \
 	DYNESDK=https://sdk.dyne.org:4443/job \
@@ -73,8 +70,6 @@ ENV PATH=$PATH:/project/sawtooth-core/bin \
     SAWTOOTH_SDK_VERSION=1.2.3 \
     SAWTOOTH_CORE_VERSION=1.2.6 \
     SAWTOOTH_PBFT_VERSION=1.0.3
-
-
 
 WORKDIR /project
 
@@ -118,17 +113,17 @@ RUN apt-get install -y -q libssl-dev libzmq3-dev torsocks
 # dep of sawtooth-core and transaction processor
 RUN pip3 install sawtooth-signing
 
-### OLD
-## Sawtooth Validator
-# RUN cd /project 
-# RUN	wget https://github.com/hyperledger/sawtooth-core/archive/v1.2.5.tar.gz 
-# RUN tar xvf v1.2.5.tar.gz
-# RUN mv /project/sawtooth-core-1.2.5 /project/sawtooth-core 
-# RUN /bin/sh -c 'cd /project/sawtooth-core'
-# RUN pwd
-# RUN /project/sawtooth-core/bin/protogen 
-# RUN cd /project/sawtooth-core/validator 
-### END OLD
+
+
+
+## Install the storage-rust-tp # TO BE CHECKED
+					 
+WORKDIR /project
+RUN git clone https://github.com/dyne/sawroom-storage-tp
+WORKDIR /project/sawroom-storage-tp
+RUN rustup run stable cargo build --release
+RUN cp -v ./target/release/storage-tp /usr/local/bin
+		 
 
 ## Sawtooth Validator
 RUN cd /project && \
@@ -199,9 +194,6 @@ RUN cd /project && \
 RUN cp /project/sawtooth-pbft/target/release/pbft-engine /usr/local/bin
 
 
-
-
-
 # Tor repository
 ADD https://raw.githubusercontent.com/DECODEproject/decode-os/master/docker-sdk/tor.pub.asc tor.pub.asc
 RUN apt-key add tor.pub.asc
@@ -234,6 +226,8 @@ RUN chmod -R go-rwx /etc/tor && chown -R sawroom:sawroom /etc/tor \
 	&& chown -R sawroom:sawroom /etc/sawtooth \
 	&& chmod o-rwx /etc/sawtooth/keys
 
+# Configure the network time protocol daemon and logrotate
+RUN apt-get -y -q install cron openntpd logrotate														  
 WORKDIR /project
 
 # petition transaction middleware
@@ -247,6 +241,8 @@ ENV SAWROOM_NETWORK  TOR
 RUN echo $SAWROOM_TRACKERS > /etc/SAWROOM_TRACKERS
 # RUN echo $SAWROOM_GENESIS  > /etc/SAWROOM_GENESIS
 RUN echo $SAWROOM_NETWORK  > /etc/SAWROOM_NETWORK
+
+COPY src/logrotate.conf /etc/logrotate.d/sawtooth														   
 COPY src/supervisord.conf  /etc/supervisor/supervisord.conf
 COPY src/sawroom-validator /usr/local/bin/sawroom-validator
 COPY src/sawroom-start     /usr/local/bin/sawroom-start
